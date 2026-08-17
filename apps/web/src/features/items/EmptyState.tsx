@@ -2,8 +2,14 @@
 
 import { ChevronDown, FolderPlus, FolderUp, Upload } from 'lucide-react';
 import { useTranslations } from 'next-intl';
-import { type ChangeEvent, useEffect, useRef } from 'react';
+import { type ChangeEvent, type MouseEvent, useEffect, useRef, useState } from 'react';
 import { Button } from '@/components/ui/button';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
 import { cn } from '@/lib/utils';
 import { useDropZone } from './uploads/drop-zone';
 import { UploadMenu } from './uploads/UploadMenu';
@@ -35,6 +41,10 @@ export function EmptyState({
   const fileInput = useRef<HTMLInputElement>(null);
   const folderInput = useRef<HTMLInputElement>(null);
 
+  // Cursor-anchored "quick actions" menu: a left-click on the empty canvas drops a
+  // small menu right under the pointer. `null` = closed; otherwise viewport coords.
+  const [menuAt, setMenuAt] = useState<{ x: number; y: number } | null>(null);
+
   // Announce this inline empty state so the full-screen overlay knows to stay hidden — it highlights
   // in place instead. The overlay's own copy passes `asOverlay` and must not register.
   useEffect(() => {
@@ -47,9 +57,20 @@ export function EmptyState({
     e.target.value = '';
   };
   const open = (input: HTMLInputElement | null) => input?.click();
+  // `onSelect` closes the menu synchronously; defer the picker so the click isn't swallowed.
+  const openLater = (input: HTMLInputElement | null) => setTimeout(() => input?.click(), 0);
+
+  // Open the quick-actions menu on a plain left-click of the empty canvas — but never when the
+  // click lands on a real control (the Upload ▾ link or the starter buttons handle their own).
+  const openMenuAt = (e: MouseEvent<HTMLDivElement>) => {
+    if (asOverlay) return; // the overlay copy is purely visual — no interactions
+    if ((e.target as HTMLElement).closest('button, a, input')) return;
+    setMenuAt({ x: e.clientX, y: e.clientY });
+  };
 
   return (
     <div
+      onClick={openMenuAt}
       className={cn(
         'group relative flex h-full min-h-[440px] w-full flex-col overflow-hidden rounded-2xl border-2 border-dashed p-6 transition-colors duration-300 sm:p-10',
         dragActive
@@ -64,54 +85,87 @@ export function EmptyState({
 
       <div className="flex flex-1 flex-col items-center justify-center gap-6 text-center">
         <UploadArt />
-        <p className="text-base text-muted-foreground">
-          {t('dropHintPrefix')}{' '}
-          <UploadMenu
-            parentId={parentId}
-            align="center"
-            filesLabel={t('files')}
-            folderLabel={t('folder')}
-            contentClassName="w-40"
-            trigger={
-              <button
-                type="button"
-                className="inline-flex items-center gap-1 font-semibold text-foreground underline decoration-primary/60 decoration-2 underline-offset-4 outline-none transition-colors hover:decoration-primary focus-visible:decoration-primary"
-              >
-                {t('upload')}
-                <ChevronDown className="size-4 opacity-70" />
-              </button>
-            }
-          />
-        </p>
+        {dragActive ? (
+          // A file is over the zone → drop mode: just the prompt, no dropdown, no buttons.
+          <p className="text-base font-medium text-foreground">{t('dropActive')}</p>
+        ) : (
+          <p className="text-base text-muted-foreground">
+            {t('dropHintPrefix')}{' '}
+            <UploadMenu
+              parentId={parentId}
+              align="center"
+              filesLabel={t('files')}
+              folderLabel={t('folder')}
+              contentClassName="w-40"
+              trigger={
+                <button
+                  type="button"
+                  className="inline-flex items-center gap-1 font-semibold text-foreground underline decoration-primary/60 decoration-2 underline-offset-4 outline-none transition-colors hover:decoration-primary focus-visible:decoration-primary"
+                >
+                  {t('upload')}
+                  <ChevronDown className="size-4 opacity-70" />
+                </button>
+              }
+            />
+          </p>
+        )}
       </div>
 
-      <div className="flex flex-col items-start gap-3">
-        <span className="text-sm text-muted-foreground">{t('otherWays')}</span>
-        <div className="flex flex-wrap gap-2.5">
-          <Button variant="secondary" size="sm" className="rounded-full" onClick={onNewFolder}>
+      {!dragActive && (
+        <div className="flex flex-col items-start gap-3">
+          <span className="text-sm text-muted-foreground">{t('otherWays')}</span>
+          <div className="flex flex-wrap gap-2.5">
+            <Button variant="secondary" size="sm" className="rounded-full" onClick={onNewFolder}>
+              <FolderPlus />
+              {t('createFolder')}
+            </Button>
+            <Button
+              variant="secondary"
+              size="sm"
+              className="rounded-full"
+              onClick={() => open(fileInput.current)}
+            >
+              <Upload />
+              {t('uploadFiles')}
+            </Button>
+            <Button
+              variant="secondary"
+              size="sm"
+              className="rounded-full"
+              onClick={() => open(folderInput.current)}
+            >
+              <FolderUp />
+              {t('uploadFolder')}
+            </Button>
+          </div>
+        </div>
+      )}
+
+      {/* Cursor-anchored quick actions. The trigger is a zero-size element pinned to the click
+          point (viewport coords → `fixed`); Radix drops the menu right beneath it. */}
+      <DropdownMenu open={menuAt !== null} onOpenChange={(o) => !o && setMenuAt(null)}>
+        <DropdownMenuTrigger asChild>
+          <span
+            aria-hidden
+            className="pointer-events-none fixed size-0"
+            style={{ left: menuAt?.x ?? 0, top: menuAt?.y ?? 0 }}
+          />
+        </DropdownMenuTrigger>
+        <DropdownMenuContent align="start" sideOffset={2} className="w-52">
+          <DropdownMenuItem onSelect={onNewFolder}>
             <FolderPlus />
             {t('createFolder')}
-          </Button>
-          <Button
-            variant="secondary"
-            size="sm"
-            className="rounded-full"
-            onClick={() => open(fileInput.current)}
-          >
+          </DropdownMenuItem>
+          <DropdownMenuItem onSelect={() => openLater(fileInput.current)}>
             <Upload />
             {t('uploadFiles')}
-          </Button>
-          <Button
-            variant="secondary"
-            size="sm"
-            className="rounded-full"
-            onClick={() => open(folderInput.current)}
-          >
+          </DropdownMenuItem>
+          <DropdownMenuItem onSelect={() => openLater(folderInput.current)}>
             <FolderUp />
             {t('uploadFolder')}
-          </Button>
-        </div>
-      </div>
+          </DropdownMenuItem>
+        </DropdownMenuContent>
+      </DropdownMenu>
 
       <input
         ref={fileInput}

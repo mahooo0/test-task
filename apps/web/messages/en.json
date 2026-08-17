@@ -212,6 +212,7 @@
     "starredAdded": "Added to Starred: “{name}”",
     "starredRemoved": "Removed from Starred: “{name}”",
     "dropHintPrefix": "Drag something here to",
+    "dropActive": "Drop files to upload",
     "upload": "Upload",
     "files": "Files",
     "folder": "Folder",
