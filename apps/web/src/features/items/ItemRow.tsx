@@ -19,14 +19,8 @@ import {
   LIST_ROW_GRID,
   LIST_ROW_ROLE,
 } from './list-columns';
-import {
-  DateHint,
-  ItemIcon,
-  isSharedPlaceholder,
-  OwnerCell,
-  SharedBadge,
-  StarBadge,
-} from './presentation';
+import { useMySharedResourceIds } from '@/features/shares/hooks';
+import { DateHint, ItemIcon, OwnerCell, SharedBadge, StarBadge } from './presentation';
 import { useItemActions } from './use-item-actions';
 
 export type { ItemAction };
@@ -40,7 +34,7 @@ export function ItemRow({ item, onAction }: ItemRowProps) {
   const isFolder = item.type === 'FOLDER';
   const { openFile } = useItemActions(item);
   const { setNodeRef, listeners, isDragging, highlight } = useItemDnd(item);
-  const shared = isSharedPlaceholder(item.id);
+  const shared = useMySharedResourceIds().has(item.id);
   const router = useRouter();
   const t = useTranslations('items');
   const locale = useLocale();

@@ -6,6 +6,7 @@ import { useTranslations } from 'next-intl';
 import { type FormEvent, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { toast } from 'sonner';
+import posthog from 'posthog-js';
 import { clerkErrorMessage, isSessionExistsError } from '@/lib/clerk-errors';
 import { setLastAuthMethod } from '@/lib/last-auth-method';
 import { GRADIENT_BTN } from '@/lib/styles';
@@ -45,6 +46,7 @@ export function SignInWithPasswordForm({
     if (!setActive) return;
     setLastAuthMethod('email');
     await setActive({ session: sessionId });
+    posthog.capture('user_signed_in', { method: 'email_password' });
     router.push(redirectTo);
   }
 

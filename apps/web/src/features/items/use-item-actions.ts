@@ -1,6 +1,7 @@
 'use client';
 
 import type { ItemDto } from '@dataroom/types';
+import posthog from 'posthog-js';
 import { useTranslations } from 'next-intl';
 import { toast } from 'sonner';
 import { errorMessage } from './errors';
@@ -24,16 +25,23 @@ export function useItemActions(item: ItemDto) {
       star.mutate(
         { id: item.id, starred: !item.starred },
         {
-          onSuccess: (updated) =>
+          onSuccess: (updated) => {
+            posthog.capture('item_starred', {
+              item_type: item.type,
+              starred: updated.starred,
+            });
             toast.success(
               updated.starred
                 ? t('starredAdded', { name: item.name })
                 : t('starredRemoved', { name: item.name }),
-            ),
+            );
+          },
           onError: (err) => toast.error(errorMessage(err, te('updateFailed'))),
         },
       ),
-    downloadFile: () =>
-      download(item.id).catch((err) => toast.error(errorMessage(err, te('downloadFailed')))),
+    downloadFile: () => {
+      posthog.capture('file_downloaded', { item_type: item.type });
+      return download(item.id).catch((err) => toast.error(errorMessage(err, te('downloadFailed'))));
+    },
   };
 }

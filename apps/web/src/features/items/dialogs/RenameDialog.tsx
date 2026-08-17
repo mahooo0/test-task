@@ -15,6 +15,7 @@ import {
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import posthog from 'posthog-js';
 import { conflictSuggestion, errorMessage } from '../errors';
 import { useRenameItem } from '../hooks';
 
@@ -60,6 +61,7 @@ export function RenameDialog({ item, open, onOpenChange }: RenameDialogProps) {
       {
         onSuccess: () => {
           toast.success(t('renamed'));
+          posthog.capture('item_renamed', { item_type: item.type });
           onOpenChange(false);
         },
         onError: (err) => {

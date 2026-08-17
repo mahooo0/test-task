@@ -13,7 +13,8 @@ import { groupByDate } from './date-buckets';
 import { DROP_HIGHLIGHT, useItemDnd } from './dnd/use-drop';
 import { formatDate } from './format';
 import { type ItemAction, ItemActionsMenu } from './ItemActionsMenu';
-import { DateHint, ItemIcon, isSharedPlaceholder, OwnerCell, SharedBadge } from './presentation';
+import { useMySharedResourceIds } from '@/features/shares/hooks';
+import { DateHint, ItemIcon, OwnerCell, SharedBadge } from './presentation';
 import { sortItems } from './sort-items';
 import { SortableHeader, useSortControls } from './SortControls';
 import { useItemActions } from './use-item-actions';
@@ -122,7 +123,7 @@ function TimelineRow({
   const locale = useLocale();
   const { openFile } = useItemActions(item);
   const { setNodeRef, listeners, isDragging, highlight } = useItemDnd(item);
-  const shared = isSharedPlaceholder(item.id);
+  const shared = useMySharedResourceIds().has(item.id);
   const router = useRouter();
 
   // Whole-row open, mirroring the list view's ItemRow: any click outside the name link/button and

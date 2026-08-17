@@ -3,6 +3,7 @@
 import { useAuth } from '@clerk/nextjs';
 import type { CreateShareBody, ShareDto, SharedResourceView } from '@dataroom/types';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { useMemo } from 'react';
 import { qk } from '@/lib/query-keys';
 import { sharesApi } from './api';
 
@@ -21,6 +22,20 @@ export function useItemShares(resourceId: string, enabled = true) {
     queryFn: async (): Promise<ShareDto[]> =>
       sharesApi.list(await requireToken(getToken), resourceId),
   });
+}
+
+/**
+ * Ids of the resources the owner currently shares (active shares only — the API filters revoked).
+ * Drives the "shared" badge on list rows / grid cards; one cached query for the whole drive.
+ */
+export function useMySharedResourceIds(): ReadonlySet<string> {
+  const { getToken, isSignedIn } = useAuth();
+  const { data } = useQuery({
+    queryKey: qk.myShares,
+    enabled: !!isSignedIn,
+    queryFn: async (): Promise<ShareDto[]> => sharesApi.list(await requireToken(getToken)),
+  });
+  return useMemo(() => new Set((data ?? []).map((share) => share.resourceId)), [data]);
 }
 
 /**
@@ -44,7 +59,10 @@ export function useSharedWithMe() {
 export function useShareMutations(resourceId: string) {
   const { getToken } = useAuth();
   const qc = useQueryClient();
-  const invalidate = () => qc.invalidateQueries({ queryKey: qk.itemShares(resourceId) });
+  const invalidate = () => {
+    void qc.invalidateQueries({ queryKey: qk.itemShares(resourceId) });
+    void qc.invalidateQueries({ queryKey: qk.myShares });
+  };
 
   const create = useMutation({
     mutationFn: async (body: CreateShareBody) =>

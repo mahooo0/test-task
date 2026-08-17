@@ -15,11 +15,9 @@ import { FolderGlyph, PdfGlyph } from './icons';
  * Presentation helpers for a drive item's owner / sharing / type — the surfaces that mirror
  * Google Drive's list + card metadata.
  *
- * NOTE (single-owner + no sharing yet): every item in a room belongs to the signed-in user, so the
- * "owner" is always the current Clerk user. Per-item share state does not exist in the backend yet
- * (see GDRIVE-PARITY.md §B — sharing is the last, unbuilt phase), so the "shared" badge is driven by
- * a clearly-marked placeholder below. When B3 lands, replace {@link isSharedPlaceholder} with the
- * real `item.shared` field and this is the only file that changes.
+ * NOTE (single-owner rooms): every item in a room belongs to the signed-in user, so the "owner" is
+ * always the current Clerk user. The "shared" badge is driven by the owner's active shares — see
+ * `useMySharedResourceIds` in features/shares/hooks.
  */
 
 /** The file/folder type glyph — folders Drive gray, PDFs the red Drive badge, so type reads at a glance. */
@@ -55,20 +53,6 @@ export function OwnerCell({ className }: { className?: string }) {
       <span className="truncate text-muted-foreground text-sm">{t('you')}</span>
     </span>
   );
-}
-
-/**
- * PLACEHOLDER — no per-item share state exists yet. Derive a stable demo flag from the id so the
- * shared badge renders on a subset of rows (matching the Google Drive reference). Deterministic, so
- * a given item is consistently "shared" across list/grid/re-renders. Replace with `item.shared`
- * once sharing (GDRIVE-PARITY §B3) is wired.
- */
-export function isSharedPlaceholder(id: string): boolean {
-  let hash = 0;
-  for (let i = 0; i < id.length; i++) {
-    hash = (hash * 31 + id.charCodeAt(i)) | 0;
-  }
-  return Math.abs(hash) % 3 === 0;
 }
 
 /** The filled star shown next to a starred item's name (Google Drive "Помеченные"). */

@@ -6,6 +6,7 @@ import { useTranslations } from 'next-intl';
 import { type FormEvent, useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { toast } from 'sonner';
+import posthog from 'posthog-js';
 import { clerkErrorMessage, isSessionExistsError } from '@/lib/clerk-errors';
 import { setLastAuthMethod } from '@/lib/last-auth-method';
 import { GRADIENT_BTN } from '@/lib/styles';
@@ -93,6 +94,10 @@ export function SignUpWithPasswordForm({ redirectTo = '/' }: SignUpWithPasswordF
       const attempt = await signUp.attemptEmailAddressVerification({ code });
       if (attempt.status === 'complete' && attempt.createdSessionId) {
         setLastAuthMethod('email');
+        if (attempt.createdUserId) {
+          posthog.identify(attempt.createdUserId, { email });
+        }
+        posthog.capture('user_signed_up', { method: 'email_password' });
         await setActive({ session: attempt.createdSessionId });
         router.push(redirectTo);
       } else {

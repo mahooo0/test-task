@@ -17,6 +17,7 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
+import posthog from 'posthog-js';
 import { errorMessage } from '@/features/items/errors';
 import { useItemShares, useShareMutations } from './hooks';
 
@@ -79,6 +80,7 @@ export function ShareDialog({
     }
     setInviteError(null);
     const done = () => {
+      posthog.capture('share_invite_sent', { item_type: item.type });
       setEmail('');
       toast.success(t('inviteSent', { email: value }));
     };
@@ -104,13 +106,20 @@ export function ShareDialog({
         resourceId: item.id,
         mode: ShareMode.PUBLIC,
       },
-      { onSuccess: () => toast.success(t('linkCreated')), onError: fail },
+      {
+        onSuccess: () => {
+          posthog.capture('share_link_created', { item_type: item.type });
+          toast.success(t('linkCreated'));
+        },
+        onError: fail,
+      },
     );
 
   const revokeLink = () => {
     if (!publicShare) return;
     revoke.mutate(publicShare.id, {
       onSuccess: () => {
+        posthog.capture('share_link_revoked', { item_type: item.type });
         toast.success(t('linkRemoved'));
         setConfirmRevoke(false);
       },

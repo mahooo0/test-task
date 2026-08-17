@@ -12,6 +12,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
+import posthog from 'posthog-js';
 import { errorMessage } from '../errors';
 import { useDeleteItem, useRestoreItem } from '../hooks';
 
@@ -35,6 +36,7 @@ export function TrashDialog({ item, open, onOpenChange }: TrashDialogProps) {
       { id: item.id },
       {
         onSuccess: () => {
+          posthog.capture('item_trashed', { item_type: item.type });
           toast.success(t('trashedToast', { name: item.name }), {
             action: {
               label: t('undo'),

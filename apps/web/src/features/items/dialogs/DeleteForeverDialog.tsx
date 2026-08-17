@@ -12,6 +12,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
+import posthog from 'posthog-js';
 import { errorMessage } from '../errors';
 import { formatBytes } from '../format';
 import { useDeleteForever, useSubtreeStats } from '../hooks';
@@ -56,6 +57,12 @@ export function DeleteForeverDialog({ item, open, onOpenChange }: DeleteForeverD
       { id: item.id },
       {
         onSuccess: () => {
+          posthog.capture('item_deleted', {
+            item_type: item.type,
+            had_contents: isFolder && stats.data
+              ? stats.data.fileCount > 0 || stats.data.folderCount > 0
+              : undefined,
+          });
           toast.success(t('deletedForever', { name: item.name }));
           onOpenChange(false);
         },

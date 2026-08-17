@@ -14,6 +14,7 @@ import {
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import posthog from 'posthog-js';
 import { errorMessage } from '../errors';
 import { useCreateFolder, useFolderPicker } from '../hooks';
 
@@ -53,6 +54,10 @@ export function NewFolderDialog({ parentId, open, onOpenChange }: NewFolderDialo
       {
         onSuccess: (item) => {
           toast.success(t('folderCreated', { name: item.name }));
+          posthog.capture('folder_created', {
+            has_parent: parentId !== null,
+            item_type: 'FOLDER',
+          });
           onOpenChange(false);
         },
         // Keep the dialog open and surface the reason inline (e.g. a clash with an existing file).

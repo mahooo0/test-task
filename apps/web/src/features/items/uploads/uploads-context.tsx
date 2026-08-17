@@ -13,6 +13,7 @@ import {
   useRef,
   useState,
 } from 'react';
+import posthog from 'posthog-js';
 import { ApiError } from '@/lib/api-client';
 import { itemsApi } from '../api';
 import { invalidateDrive } from '../hooks';
@@ -126,6 +127,7 @@ export function UploadsProvider({ children }: { children: ReactNode }) {
         );
         await itemsApi.finalizeUpload(await requireToken(), ticket.item.id);
         patch(taskId, { state: 'done', progress: 100 });
+        posthog.capture('file_upload_completed', { file_size_bytes: file.size });
         invalidateDrive(queryClient);
       } catch (err) {
         const aborted = err instanceof DOMException && err.name === 'AbortError';

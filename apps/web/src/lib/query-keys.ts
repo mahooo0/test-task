@@ -34,6 +34,8 @@ export const qk = {
   allFolders: (limit: number) => ['all-folders', limit] as const,
   /** Shares the owner has created for one resource (item or room). */
   itemShares: (resourceId: string) => ['shares', resourceId] as const,
+  /** Every active share the owner has created — drives the per-row "shared" badge. */
+  myShares: ['my-shares'] as const,
   /** Resources shared with the current user ("Доступно мне"). */
   sharedWithMe: ['shared-with-me'] as const,
 };

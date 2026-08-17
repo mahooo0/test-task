@@ -12,14 +12,8 @@ import { DROP_HIGHLIGHT, useItemDnd } from '../dnd/use-drop';
 import { FolderGlyph } from '../icons';
 import { formatDate } from '../format';
 import { type ItemAction, ItemActionsMenu } from '../ItemActionsMenu';
-import {
-  DateHint,
-  ItemIcon,
-  isSharedPlaceholder,
-  SharedBadge,
-  StarBadge,
-  useCurrentOwner,
-} from '../presentation';
+import { useMySharedResourceIds } from '@/features/shares/hooks';
+import { DateHint, ItemIcon, SharedBadge, StarBadge, useCurrentOwner } from '../presentation';
 import { useItemActions } from '../use-item-actions';
 import { PdfThumbnail, previewFrameClass } from './PdfThumbnail';
 
@@ -40,7 +34,7 @@ export function ItemCard({ item, onAction }: ItemCardProps) {
   const { openFile } = useItemActions(item);
   const { setNodeRef, listeners, isDragging, highlight } = useItemDnd(item);
   const owner = useCurrentOwner();
-  const shared = isSharedPlaceholder(item.id);
+  const shared = useMySharedResourceIds().has(item.id);
   const router = useRouter();
 
   // Whole-card open, mirroring the list view's ItemRow: any click outside the name/preview links

@@ -31,3 +31,4 @@ coverage/
 
 # Morgan in-flight work (scratch)
 .camp/
+.vercel

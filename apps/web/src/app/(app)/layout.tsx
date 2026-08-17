@@ -1,4 +1,5 @@
 import type { ReactNode } from 'react';
+import { PostHogIdentifier } from '@/components/PostHogIdentifier';
 import { DetailsPanelProvider } from '@/features/items/details/details-panel';
 import { DriveDndProvider } from '@/features/items/dnd/DriveDndProvider';
 import { PdfPreviewProvider } from '@/features/items/preview/pdf-preview';
@@ -25,6 +26,7 @@ export default function AppLayout({ children }: { children: ReactNode }) {
             <DriveDndProvider>
               <AppShell>{children}</AppShell>
               <NewShareNotifier />
+              <PostHogIdentifier />
             </DriveDndProvider>
           </DetailsPanelProvider>
         </PdfPreviewProvider>

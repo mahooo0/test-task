@@ -16,6 +16,7 @@ import {
 } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
+import posthog from 'posthog-js';
 import { errorMessage } from '../errors';
 import { useFolderPicker, useMoveItem } from '../hooks';
 
@@ -57,6 +58,10 @@ export function MoveDialog({ item, open, onOpenChange }: MoveDialogProps) {
       { id: item.id, parentId: current.id },
       {
         onSuccess: () => {
+          posthog.capture('item_moved', {
+            item_type: item.type,
+            destination_is_root: current.id === null,
+          });
           toast.success(t('moved', { name: item.name, destination: current.name }));
           onOpenChange(false);
         },
