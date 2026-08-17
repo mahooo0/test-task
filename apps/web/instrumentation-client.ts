@@ -1,4 +1,8 @@
 import posthog from 'posthog-js';
+// Bundle the session-replay recorder into our own chunks instead of lazy-loading
+// `posthog-recorder.js` from the CDN — ad blockers match that filename and silently
+// kill recordings (the rest of the SDK keeps working, so it's easy to miss).
+import 'posthog-js/dist/posthog-recorder';
 
 if (process.env.NODE_ENV !== 'production') {
   if (!process.env.NEXT_PUBLIC_POSTHOG_PROJECT_TOKEN) {
