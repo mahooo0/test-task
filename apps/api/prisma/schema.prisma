@@ -1,0 +1,184 @@
+// Data Room schema — Google Drive-style unified node tree + ACL sharing.
+// See README "Data model" and "How it scales" for the reasoning behind these choices.
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ── Enums ─────────────────────────────────────────────────────────────────────
+
+enum ItemType {
+  FOLDER
+  FILE
+}
+
+/// Upload lifecycle. A FILE row is created PENDING before the R2 PUT and flipped to
+/// ACTIVE on finalize; FOLDERs are created ACTIVE directly. Every listing / stats /
+/// name-uniqueness check filters `status = ACTIVE`, so half-finished uploads are
+/// never visible and never collide on names (see README "File storage & upload flow").
+/// TRASHED = soft-deleted (in the Trash); every read filters `status = ACTIVE`, so a trashed
+/// item — and its whole subtree, which is trashed with it — disappears from listings until
+/// restored or permanently deleted.
+enum ItemStatus {
+  PENDING
+  ACTIVE
+  TRASHED
+}
+
+enum ShareResourceType {
+  ROOM
+  ITEM
+}
+
+enum ShareMode {
+  PUBLIC
+  RESTRICTED
+}
+
+/// Only VIEWER is used in the MVP. EDITOR exists so per-user roles can be added
+/// later without a schema migration (see README "How it scales").
+enum ShareRole {
+  VIEWER
+  EDITOR
+}
+
+// ── Models ────────────────────────────────────────────────────────────────────
+
+model User {
+  id      String @id @default(cuid())
+  /// Clerk user id — the identity Clerk owns; our source of truth for who this is.
+  clerkId String @unique
+  email   String @unique
+  name    String
+  avatarUrl String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  dataRoom      DataRoom?
+  shares        Share[]      @relation("ShareOwner")
+  shareGrants   ShareGrant[]
+  uploadedItems Item[]       @relation("ItemUploader")
+
+  @@map("users")
+}
+
+/// Top-level container ("drive"). Exactly one per user, auto-created on signup.
+model DataRoom {
+  id      String @id @default(cuid())
+  name    String
+  ownerId String @unique
+  owner   User   @relation(fields: [ownerId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  items Item[]
+
+  @@map("data_rooms")
+}
+
+/// A node in the tree: a FOLDER or a FILE (folders are files with a type, like Drive).
+/// Adjacency list via `parentId`; `parentId == null` means "at the Data Room root".
+model Item {
+  id         String   @id @default(cuid())
+  dataRoomId String
+  dataRoom   DataRoom @relation(fields: [dataRoomId], references: [id], onDelete: Cascade)
+  parentId   String?
+  parent     Item?    @relation("ItemChildren", fields: [parentId], references: [id], onDelete: Cascade)
+  children   Item[]   @relation("ItemChildren")
+
+  type   ItemType
+  status ItemStatus
+  name   String
+
+  /// Google Drive "Помеченные" — whether the caller has starred this item.
+  starred Boolean @default(false)
+
+  /// Who created this item (folder create / file upload). Nullable: rows created before B1,
+  /// and items whose uploader account was later deleted (FK ON DELETE SET NULL). In a
+  /// single-owner room this is always the room owner; it turns meaningful once sharing (B)
+  /// lets non-owners add items to a shared room.
+  uploadedById String?
+  uploadedBy   User?   @relation("ItemUploader", fields: [uploadedById], references: [id], onDelete: SetNull)
+
+  // ── File-only fields (all null for folders) ──
+  /// Stored as BigInt to stay correct beyond 2 GB; mapped to number at the API boundary.
+  sizeBytes  BigInt?
+  mimeType   String?
+  /// Object key in blob storage (R2). Unique per stored file.
+  storageKey String? @unique
+  /// Set on finalize once R2 confirms the bytes landed (files only).
+  uploadedAt DateTime?
+
+  /// Set when the item is moved to the Trash (status → TRASHED); null while ACTIVE/PENDING.
+  deletedAt DateTime?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Folders-first keyset listing (ORDER BY type, name, id) reads straight off this index.
+  @@index([dataRoomId, parentId, type, name])
+  @@index([parentId])
+  // Trash listing scans the room's TRASHED rows.
+  @@index([dataRoomId, status])
+  // Starred ("Помеченные") listing scans the room's starred rows.
+  @@index([dataRoomId, starred])
+  // "Shared with me" / owner lookups scan an uploader's items.
+  @@index([uploadedById])
+  // Two partial UNIQUE indexes enforce sibling-name uniqueness among ACTIVE items only
+  // (one for nested items, one for the room root). Prisma DSL can't express partial
+  // indexes, so they live as raw SQL in the migration:
+  //   items_parent_name_active_uq     (parentId, name)   WHERE parentId IS NOT NULL AND status = 'ACTIVE'
+  //   items_room_root_name_active_uq  (dataRoomId, name) WHERE parentId IS NULL     AND status = 'ACTIVE'
+  @@map("items")
+}
+
+/// A share of a Data Room (ROOM) or a single Item (ITEM), in PUBLIC or RESTRICTED mode.
+/// `resourceId` is polymorphic (points at DataRoom.id or Item.id) so there is no FK here;
+/// integrity is enforced in the service layer.
+model Share {
+  id           String            @id @default(cuid())
+  ownerId      String
+  owner        User              @relation("ShareOwner", fields: [ownerId], references: [id], onDelete: Cascade)
+  resourceType ShareResourceType
+  resourceId   String
+  mode         ShareMode
+  role         ShareRole         @default(VIEWER)
+  /// Random token embedded in the public link. Null for RESTRICTED shares.
+  publicToken  String?           @unique
+
+  createdAt DateTime  @default(now())
+  /// Set when the owner revokes the share; access checks treat revoked shares as gone.
+  revokedAt DateTime?
+
+  grants ShareGrant[]
+
+  @@index([resourceType, resourceId])
+  @@index([ownerId])
+  @@map("shares")
+}
+
+/// One invited user for a RESTRICTED share. Invited by email; `userId` is linked
+/// once that email registers / signs in.
+model ShareGrant {
+  id           String    @id @default(cuid())
+  shareId      String
+  share        Share     @relation(fields: [shareId], references: [id], onDelete: Cascade)
+  invitedEmail String
+  userId       String?
+  user         User?     @relation(fields: [userId], references: [id], onDelete: SetNull)
+  role         ShareRole @default(VIEWER)
+
+  createdAt DateTime @default(now())
+
+  @@unique([shareId, invitedEmail])
+  @@index([userId])
+  @@index([invitedEmail])
+  @@map("share_grants")
+}
