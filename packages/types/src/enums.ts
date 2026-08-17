@@ -4,16 +4,6 @@ export enum ItemType {
   FILE = 'FILE',
 }
 
-/**
- * Upload lifecycle of an Item. Files are created PENDING before the blob upload and
- * flipped to ACTIVE once it is confirmed; folders are ACTIVE from creation. Server-side
- * only — PENDING rows are never listed, so this never appears in {@link ItemDto}.
- */
-export enum ItemStatus {
-  PENDING = 'PENDING',
-  ACTIVE = 'ACTIVE',
-}
-
 /** What a share points at: a whole Data Room, or a single Item (folder or file). */
 export enum ShareResourceType {
   ROOM = 'ROOM',

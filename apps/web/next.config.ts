@@ -2,8 +2,9 @@ import type { NextConfig } from 'next';
 import createNextIntlPlugin from 'next-intl/plugin';
 
 const nextConfig: NextConfig = {
-  // The Data Room API (NestJS) is a separate service; the browser talks to it
-  // directly with a Clerk bearer token, so nothing is proxied here.
+  // The Data Room API (NestJS) is a separate service the browser calls directly with a Clerk
+  // bearer token — it is NOT proxied here. The rewrites below only reverse-proxy PostHog
+  // ingestion through our own origin so ad blockers can't kill analytics.
   async rewrites() {
     return [
       {

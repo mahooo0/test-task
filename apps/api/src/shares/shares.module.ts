@@ -11,6 +11,5 @@ import { SharesService } from './shares.service';
   imports: [AuthModule, ItemsModule],
   controllers: [SharesController, SharedController, PublicSharesController],
   providers: [SharesService],
-  exports: [SharesService],
 })
 export class SharesModule {}

@@ -10,8 +10,7 @@ export const envSchema = z.object({
   /** Browser origin of the SPA, used for CORS. */
   CORS_ORIGIN: z.string().min(1),
 
-  // Clerk — the API verifies session tokens with the secret key.
-  CLERK_PUBLISHABLE_KEY: z.string().min(1),
+  // Clerk — the API verifies session tokens with the secret key (the publishable key is frontend-only).
   CLERK_SECRET_KEY: z.string().min(1),
 
   // Cloudflare R2 (blob storage) — wired up in the Files feature.

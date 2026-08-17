@@ -16,9 +16,3 @@ export const GRADIENT_BTN = [
   'hover:before:bg-[linear-gradient(to_bottom_right,rgba(137,190,255,0.18),rgba(137,190,255,0.85))]',
   'focus-visible:ring-2 focus-visible:ring-[#89BEFF]/60',
 ].join(' ');
-
-/** Subtle blue tint for framing surfaces (auth cards, hero outlines). */
-export const FRAME_BLUE_TINT = [
-  'ring-1 ring-[#89BEFF]/25',
-  'shadow-[0_1px_0_rgba(137,190,255,0.15),0_20px_60px_-30px_rgba(137,190,255,0.35)]',
-].join(' ');

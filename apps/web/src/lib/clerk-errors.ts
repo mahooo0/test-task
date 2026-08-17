@@ -41,22 +41,14 @@ export function isSessionExistsError(err: unknown): boolean {
  * Resolve a Clerk / fetch error into a localized, user-facing message. Known
  * Clerk error codes map to translated copy so RU/UK users never see English;
  * unmapped codes fall back to Clerk's own message, then a generic localized string.
- *
- * Pass the `auth` translator to get localized code mapping. A plain string may be
- * passed for the legacy behaviour (Clerk's message, then that string as fallback),
- * which callers outside the auth forms still rely on.
  */
-export function clerkErrorMessage(err: unknown, tOrFallback: AuthTranslator | string): string {
+export function clerkErrorMessage(err: unknown, t: AuthTranslator): string {
   const e = err as ClerkErrLike;
   const clerkError = e?.errors?.[0];
   const code = clerkError?.code ?? '';
 
-  if (typeof tOrFallback === 'string') {
-    return clerkError?.message ?? (err instanceof Error ? err.message : tOrFallback);
-  }
-
   if (isLocalizedCode(code)) {
-    return tOrFallback(`errors.${code}`);
+    return t(`errors.${code}`);
   }
-  return clerkError?.message ?? (err instanceof Error ? err.message : tOrFallback('errors.fallback'));
+  return clerkError?.message ?? (err instanceof Error ? err.message : t('errors.fallback'));
 }

@@ -2,7 +2,6 @@ import type { ItemSortField, SortDirection } from '@dataroom/types';
 
 /** Centralized React Query key factory — one source of truth for cache keys. */
 export const qk = {
-  me: ['me'] as const,
   room: ['room'] as const,
   roomStats: ['room', 'stats'] as const,
   /**

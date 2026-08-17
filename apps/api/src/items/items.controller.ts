@@ -20,6 +20,7 @@ import type {
 } from '@dataroom/types';
 import { ClerkAuthGuard } from '../common/guards/clerk-auth.guard';
 import { CurrentUser } from '../common/decorators/current-user.decorator';
+import { DEFAULT_PAGE_SIZE, normalizeParent } from '../common/listing';
 import type { AuthUser } from '../common/types/auth-user';
 import { ItemsService } from './items.service';
 import { CreateFolderDto } from './dto/create-folder.dto';
@@ -28,7 +29,6 @@ import { PresignUploadDto } from './dto/presign-upload.dto';
 import { SearchItemsDto } from './dto/search-items.dto';
 import { UpdateItemDto } from './dto/update-item.dto';
 
-const DEFAULT_PAGE_SIZE = 50;
 const DEFAULT_SEARCH_LIMIT = 20;
 
 /**
@@ -45,8 +45,7 @@ export class ItemsController {
     @CurrentUser() user: AuthUser,
     @Query() query: ListChildrenDto,
   ): Promise<Paginated<ItemDto>> {
-    const parentId =
-      !query.parentId || query.parentId === 'root' ? null : query.parentId;
+    const parentId = normalizeParent(query.parentId);
     return this.items.listChildren(
       user.id,
       parentId,

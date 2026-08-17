@@ -1,7 +1,8 @@
 import { Injectable } from '@nestjs/common';
-import { Prisma, type User } from '@prisma/client';
+import type { User } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import { AppException } from '../common/exceptions/app.exception';
+import { isUniqueViolation } from '../common/prisma-errors';
 import { ClerkService } from '../clerk/clerk.service';
 
 const DEFAULT_ROOM_NAME = 'My Data Room';
@@ -49,10 +50,7 @@ export class UsersService {
       });
     } catch (error) {
       // Two concurrent first requests can race; the loser re-reads the winner's row.
-      if (
-        error instanceof Prisma.PrismaClientKnownRequestError &&
-        error.code === 'P2002'
-      ) {
+      if (isUniqueViolation(error)) {
         const user = await this.prisma.user.findUnique({ where: { clerkId } });
         if (user) return user;
       }

@@ -160,7 +160,7 @@ function ListSkeleton() {
   return (
     <div className="flex flex-col gap-1">
       {Array.from({ length: 5 }).map((_, i) => (
-        // biome-ignore lint/suspicious/noArrayIndexKey: fixed-length static skeleton
+        // Index keys are fine here: fixed-length static skeleton
         <div key={i} className="flex items-center gap-3 px-3 py-2.5">
           <Skeleton className="size-5 rounded" />
           <Skeleton className="h-4 w-40" />

@@ -215,7 +215,7 @@ function ListSkeleton() {
   return (
     <div className="space-y-1 py-1">
       {Array.from({ length: 6 }).map((_, i) => (
-        // biome-ignore lint/suspicious/noArrayIndexKey: fixed-length static skeleton
+        // Index keys are fine here: fixed-length static skeleton
         <div key={i} className="flex items-center gap-2.5 px-3 py-2">
           <Skeleton className="size-6 rounded" />
           <Skeleton className="h-4 w-56" />
@@ -229,7 +229,7 @@ function GridSkeleton() {
   return (
     <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 md:grid-cols-4 xl:grid-cols-5">
       {Array.from({ length: 8 }).map((_, i) => (
-        // biome-ignore lint/suspicious/noArrayIndexKey: fixed-length static skeleton
+        // Index keys are fine here: fixed-length static skeleton
         <div key={i} className="overflow-hidden rounded-xl border">
           <Skeleton className="aspect-[4/3] rounded-none" />
           <div className="space-y-1.5 p-3">

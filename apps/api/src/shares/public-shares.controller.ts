@@ -5,10 +5,9 @@ import type {
   ItemDto,
   Paginated,
 } from '@dataroom/types';
+import { DEFAULT_PAGE_SIZE, normalizeParent } from '../common/listing';
 import { ListChildrenDto } from '../items/dto/list-children.dto';
 import { SharesService, type SharedResourceView } from './shares.service';
-
-const DEFAULT_PAGE_SIZE = 50;
 
 /**
  * Anonymous public-link surface — the token in the URL is the only credential (NO auth guard).
@@ -69,9 +68,4 @@ export class PublicSharesController {
   ): Promise<ContentUrlDto> {
     return this.shares.publicContent(token, id, 'attachment');
   }
-}
-
-/** `root`/absent ⇒ the shared root (null sentinel); any other value is a specific folder id. */
-function normalizeParent(parentId?: string): string | null {
-  return !parentId || parentId === 'root' ? null : parentId;
 }

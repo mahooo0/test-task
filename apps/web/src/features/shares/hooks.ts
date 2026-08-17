@@ -5,13 +5,8 @@ import type { CreateShareBody, ShareDto, SharedResourceView } from '@dataroom/ty
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useMemo } from 'react';
 import { qk } from '@/lib/query-keys';
+import { requireToken } from '@/lib/require-token';
 import { sharesApi } from './api';
-
-async function requireToken(getToken: () => Promise<string | null>): Promise<string> {
-  const token = await getToken();
-  if (!token) throw new Error('Not authenticated');
-  return token;
-}
 
 /** The shares the owner has created for one item (drives the Share dialog's current state). */
 export function useItemShares(resourceId: string, enabled = true) {

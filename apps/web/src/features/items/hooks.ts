@@ -21,14 +21,8 @@ import type {
   SubtreeStatsDto,
 } from '@dataroom/types';
 import { qk } from '@/lib/query-keys';
+import { requireToken } from '@/lib/require-token';
 import { itemsApi, type UpdateItemBody } from './api';
-
-/** Signed-in but the token isn't minted yet is transient — throw so React Query retries. */
-async function requireToken(getToken: () => Promise<string | null>): Promise<string> {
-  const token = await getToken();
-  if (!token) throw new Error('Session token not ready');
-  return token;
-}
 
 /** Everything a drive mutation can touch: listings, subtree stats, room stats, breadcrumbs, folder tree. */
 export function invalidateDrive(queryClient: QueryClient): void {

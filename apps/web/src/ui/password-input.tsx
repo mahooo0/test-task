@@ -4,7 +4,7 @@ import { Eye, EyeOff } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 import { type ComponentProps, useState } from 'react';
 import { cn } from '@/lib/utils';
-import { Input } from '@/ui/input';
+import { Input } from '@/components/ui/input';
 
 type PasswordInputProps = Omit<ComponentProps<'input'>, 'type'>;
 

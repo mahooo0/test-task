@@ -17,6 +17,7 @@ import type {
 import { ShareMode, ShareResourceType, ShareRole } from '@dataroom/types';
 import { PrismaService } from '../prisma/prisma.service';
 import { AppException } from '../common/exceptions/app.exception';
+import { getOwnedRoomId } from '../common/owned-room';
 import { ItemsService } from '../items/items.service';
 import type { CreateShareDto } from './dto/create-share.dto';
 import type { ListSharesDto } from './dto/list-shares.dto';
@@ -188,16 +189,19 @@ export class SharesService {
       },
       orderBy: { createdAt: 'desc' },
     });
-    const views: SharedResourceView[] = [];
-    for (const share of shares) {
-      // A share whose resource was since trashed/deleted resolves to nothing — drop it silently.
-      try {
-        views.push(await this.describeAccess(await this.toAccess(share)));
-      } catch {
-        // skip dead shares
-      }
-    }
-    return views;
+    const views = await Promise.all(
+      shares.map(async (share) => {
+        // A share whose resource was since trashed/deleted resolves to nothing — drop it silently.
+        try {
+          return await this.describeAccess(await this.toAccess(share));
+        } catch (err) {
+          // Only the expected dead-resource misses may be dropped; a DB failure must surface.
+          if (err instanceof AppException) return null;
+          throw err;
+        }
+      }),
+    );
+    return views.filter((view): view is SharedResourceView => view !== null);
   }
 
   // Public-link surface (anonymous — the token is the credential).
@@ -515,15 +519,8 @@ export class SharesService {
   }
 
   /** The caller owns exactly one room; resolve its id (fail closed if somehow missing). */
-  private async getRoomId(ownerId: string): Promise<string> {
-    const room = await this.prisma.dataRoom.findUnique({
-      where: { ownerId },
-      select: { id: true },
-    });
-    if (!room) {
-      throw new AppException('room.notFound');
-    }
-    return room.id;
+  private getRoomId(ownerId: string): Promise<string> {
+    return getOwnedRoomId(this.prisma, ownerId);
   }
 
   /**
@@ -570,8 +567,10 @@ export class SharesService {
   /** Upsert one grant per email, linking `userId` when that email already has an account. */
   private async upsertGrants(shareId: string, emails: string[]): Promise<void> {
     if (emails.length === 0) return;
+    // Invited emails are normalized to lowercase, but stored emails may keep their original
+    // casing — match insensitively or a MixedCase account never gets linked to its grant.
     const users = await this.prisma.user.findMany({
-      where: { email: { in: emails } },
+      where: { email: { in: emails, mode: 'insensitive' } },
       select: { id: true, email: true },
     });
     const userIdByEmail = new Map(

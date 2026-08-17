@@ -4,7 +4,7 @@ import type { AuthUser } from '../types/auth-user';
 
 /**
  * Injects the authenticated user (`req.user`) into a handler parameter.
- * Returns `undefined` on routes guarded by `OptionalJwtGuard` when anonymous.
+ * `undefined` only if a route ever omits `ClerkAuthGuard` (all current consumers are guarded).
  */
 export const CurrentUser = createParamDecorator(
   (_data: unknown, ctx: ExecutionContext): AuthUser | undefined => {

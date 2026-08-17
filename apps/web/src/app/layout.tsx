@@ -32,7 +32,7 @@ export default async function RootLayout({ children }: { children: ReactNode }) 
   return (
     <html lang={locale} className={sora.variable} suppressHydrationWarning>
       <body>
-        {/* biome-ignore lint/security/noDangerouslySetInnerHtml: static, pre-hydration theme script */}
+        {/* Static, trusted pre-hydration theme script (no user input). */}
         <script dangerouslySetInnerHTML={{ __html: NO_FLASH_THEME }} />
         <NextIntlClientProvider locale={locale} messages={messages}>
           <Providers>{children}</Providers>

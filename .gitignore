@@ -29,6 +29,8 @@ coverage/
 # Vercel / deploy
 .vercel/
 
+# Agent scratch dirs (Claude Code / PostHog wizard skills)
+.claude/
+
 # Morgan in-flight work (scratch)
 .camp/
-.vercel

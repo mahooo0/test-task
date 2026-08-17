@@ -100,7 +100,7 @@ function useDriveSearch(
       { type: filterType, person: filterPerson, modified: filterModified },
       drive.ownerKeyById,
     );
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- drive.* are memoized by the shared feed
+    // drive.* accessors are memoized by the shared feed, so they are safe to omit from deps
   }, [ownResults, drive.sharedItems, drive.ownerKeyById, term, needle, filterType, filterPerson, filterModified]);
 
   // People the term can match: you + everyone who shared a file/folder with you. Each is a suggestion

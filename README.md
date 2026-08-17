@@ -4,8 +4,7 @@ A secure, Google Drive–style **Data Room** for due-diligence: upload, organize
 
 Full-stack, deployed end-to-end: **NestJS + PostgreSQL + Prisma** API, **Next.js (App Router)** web app, **Cloudflare R2** blob storage, **Clerk** authentication.
 
-> **Live demo** — Web: `https://<your-vercel-app>.vercel.app` · API health: `https://<your-api-host>/api/health`
-> _(replace with the deployed URLs once hosted — see [Deployment](#deployment))_
+> **Live demo** — Web: **https://dataroom.holy-water.app** · API health: **https://api.dataroom.holy-water.app/api/health**
 
 ---
 

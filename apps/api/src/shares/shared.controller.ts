@@ -7,11 +7,10 @@ import type {
 } from '@dataroom/types';
 import { ClerkAuthGuard } from '../common/guards/clerk-auth.guard';
 import { CurrentUser } from '../common/decorators/current-user.decorator';
+import { DEFAULT_PAGE_SIZE, normalizeParent } from '../common/listing';
 import type { AuthUser } from '../common/types/auth-user';
 import { ListChildrenDto } from '../items/dto/list-children.dto';
 import { SharesService, type SharedResourceView } from './shares.service';
-
-const DEFAULT_PAGE_SIZE = 50;
 
 /**
  * "Shared with me" surface — an authenticated non-owner reading a RESTRICTED share they were invited
@@ -101,9 +100,4 @@ export class SharedController {
       'attachment',
     );
   }
-}
-
-/** `root`/absent ⇒ the shared root (null sentinel); any other value is a specific folder id. */
-function normalizeParent(parentId?: string): string | null {
-  return !parentId || parentId === 'root' ? null : parentId;
 }

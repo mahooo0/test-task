@@ -12,6 +12,8 @@ import type {
 } from '@dataroom/types';
 import { PrismaService } from '../prisma/prisma.service';
 import { AppException } from '../common/exceptions/app.exception';
+import { getOwnedRoomId } from '../common/owned-room';
+import { isUniqueViolation } from '../common/prisma-errors';
 import { StorageService } from '../storage/storage.service';
 import { type ItemCursor, decodeCursor, encodeCursor } from './items.cursor';
 import type { PresignUploadDto } from './dto/presign-upload.dto';
@@ -33,6 +35,11 @@ const MAX_UPLOAD_BYTES = MAX_UPLOAD_MB * 1024 * 1024;
 /** How long a trashed item survives before it's permanently purged (Google-Drive-style). */
 const TRASH_RETENTION_DAYS = 30;
 const TRASH_RETENTION_MS = TRASH_RETENTION_DAYS * 24 * 60 * 60 * 1000;
+
+/** The scalar columns every `ItemSource` row needs — shared so the raw listings can't drift. */
+const ITEM_COLUMNS = Prisma.raw(
+  'id, "dataRoomId", "parentId", type, name, "sizeBytes", "mimeType", "starred", "createdAt", "updatedAt"',
+);
 
 @Injectable()
 export class ItemsService {
@@ -105,7 +112,7 @@ export class ItemsService {
       : Prisma.empty;
 
     const rows = await this.prisma.$queryRaw<ItemSource[]>(Prisma.sql`
-      SELECT id, "dataRoomId", "parentId", type, name, "sizeBytes", "mimeType", "starred", "createdAt", "updatedAt",
+      SELECT ${ITEM_COLUMNS},
         -- Does this folder hold a subfolder? Drives the sidebar tree's expand affordance. Computed
         -- for folders only (files are leaves ⇒ false), so the file-heavy drive listing pays nothing.
         CASE WHEN type = 'FOLDER' THEN EXISTS (
@@ -151,7 +158,7 @@ export class ItemsService {
         ? Prisma.sql`AND name ILIKE ${`%${escapeLike(query)}%`} ESCAPE '\\'`
         : Prisma.empty;
     const rows = await this.prisma.$queryRaw<ItemSource[]>(Prisma.sql`
-      SELECT id, "dataRoomId", "parentId", type, name, "sizeBytes", "mimeType", "starred", "createdAt", "updatedAt"
+      SELECT ${ITEM_COLUMNS}
       FROM "items"
       WHERE "dataRoomId" = ${dataRoomId}
         AND status = 'ACTIVE'
@@ -166,7 +173,7 @@ export class ItemsService {
   async listStarred(ownerId: string): Promise<ItemDto[]> {
     const dataRoomId = await this.getRoomId(ownerId);
     const rows = await this.prisma.$queryRaw<ItemSource[]>(Prisma.sql`
-      SELECT id, "dataRoomId", "parentId", type, name, "sizeBytes", "mimeType", "starred", "createdAt", "updatedAt"
+      SELECT ${ITEM_COLUMNS}
       FROM "items"
       WHERE "dataRoomId" = ${dataRoomId}
         AND status = 'ACTIVE'
@@ -206,10 +213,6 @@ export class ItemsService {
           uploadedById: ownerId,
         },
       });
-    const isUniqueViolation = (err: unknown) =>
-      err instanceof Prisma.PrismaClientKnownRequestError &&
-      err.code === 'P2002';
-
     if (onConflict === 'error') {
       const clash = await this.prisma.item.findFirst({
         where: { dataRoomId, parentId, name: desired, status: 'ACTIVE' },
@@ -354,10 +357,7 @@ export class ItemsService {
       });
       return toItemDto(updated);
     } catch (err) {
-      if (
-        err instanceof Prisma.PrismaClientKnownRequestError &&
-        err.code === 'P2002'
-      ) {
+      if (isUniqueViolation(err)) {
         throw await this.nameConflict(
           dataRoomId,
           targetParentId,
@@ -474,14 +474,21 @@ export class ItemsService {
   /** Empty the Trash: permanently delete every TRASHED row in the room (and its blobs). */
   async emptyTrash(ownerId: string): Promise<void> {
     const dataRoomId = await this.getRoomId(ownerId);
-    const rows = await this.prisma.item.findMany({
-      where: { dataRoomId, status: 'TRASHED', storageKey: { not: null } },
-      select: { storageKey: true },
-    });
-    const keys = rows
-      .map((r) => r.storageKey)
-      .filter((k): k is string => k !== null);
-    await this.storage.deleteObjects(keys);
+    // Walk the full subtrees, not just TRASHED rows: the row delete cascades to PENDING
+    // descendants too (an upload presigned before the folder was trashed stays PENDING),
+    // and their blobs would otherwise be orphaned in R2.
+    const rows = await this.prisma.$queryRaw<
+      Array<{ storageKey: string }>
+    >(Prisma.sql`
+      WITH RECURSIVE doomed AS (
+        SELECT id, "storageKey" FROM "items"
+        WHERE "dataRoomId" = ${dataRoomId} AND status = 'TRASHED'
+        UNION
+        SELECT i.id, i."storageKey" FROM "items" i JOIN doomed d ON i."parentId" = d.id
+      )
+      SELECT DISTINCT "storageKey" FROM doomed WHERE "storageKey" IS NOT NULL
+    `);
+    await this.storage.deleteObjects(rows.map((r) => r.storageKey));
     await this.prisma.item.deleteMany({
       where: { dataRoomId, status: 'TRASHED' },
     });
@@ -496,12 +503,19 @@ export class ItemsService {
    */
   private async purgeExpiredTrash(dataRoomId: string): Promise<void> {
     const cutoff = new Date(Date.now() - TRASH_RETENTION_MS).toISOString();
+    // Same subtree walk as emptyTrash: the delete below cascades to every descendant of an
+    // expired root (PENDING uploads, later-trashed children), so their blobs must go too.
     const rows = await this.prisma.$queryRaw<
       Array<{ storageKey: string }>
     >(Prisma.sql`
-      SELECT "storageKey" FROM "items"
-      WHERE "dataRoomId" = ${dataRoomId} AND status = 'TRASHED'
-        AND "deletedAt" < ${cutoff}::timestamp AND "storageKey" IS NOT NULL
+      WITH RECURSIVE doomed AS (
+        SELECT id, "storageKey" FROM "items"
+        WHERE "dataRoomId" = ${dataRoomId} AND status = 'TRASHED'
+          AND "deletedAt" < ${cutoff}::timestamp
+        UNION
+        SELECT i.id, i."storageKey" FROM "items" i JOIN doomed d ON i."parentId" = d.id
+      )
+      SELECT DISTINCT "storageKey" FROM doomed WHERE "storageKey" IS NOT NULL
     `);
     if (rows.length > 0) {
       await this.storage.deleteObjects(rows.map((r) => r.storageKey));
@@ -597,10 +611,7 @@ export class ItemsService {
         });
       } catch (err) {
         // Lost a concurrent same-name race — recompute the suffix and retry.
-        if (
-          err instanceof Prisma.PrismaClientKnownRequestError &&
-          err.code === 'P2002'
-        ) {
+        if (isUniqueViolation(err)) {
           continue;
         }
         throw err;
@@ -660,10 +671,7 @@ export class ItemsService {
         return toItemDto(finalized);
       } catch (err) {
         // Another file with this name went ACTIVE while we uploaded — re-suffix and retry.
-        if (
-          err instanceof Prisma.PrismaClientKnownRequestError &&
-          err.code === 'P2002'
-        ) {
+        if (isUniqueViolation(err)) {
           name = await this.resolveName(dataRoomId, item.parentId, name, {
             excludeId: item.id,
             isFile: true,
@@ -706,15 +714,8 @@ export class ItemsService {
   // ── internals ────────────────────────────────────────────────────────────────
 
   /** The caller owns exactly one room; resolve its id (fail closed if somehow missing). */
-  private async getRoomId(ownerId: string): Promise<string> {
-    const room = await this.prisma.dataRoom.findUnique({
-      where: { ownerId },
-      select: { id: true },
-    });
-    if (!room) {
-      throw new AppException('room.notFound');
-    }
-    return room.id;
+  private getRoomId(ownerId: string): Promise<string> {
+    return getOwnedRoomId(this.prisma, ownerId);
   }
 
   private async findActiveItemOrThrow(
