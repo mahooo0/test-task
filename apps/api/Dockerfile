@@ -9,7 +9,7 @@ RUN corepack enable
 WORKDIR /app
 
 # Install with just the manifests first so Docker caches the pnpm store layer.
-COPY package.json pnpm-lock.yaml pnpm-workspace.yaml .npmrc ./
+COPY package.json pnpm-lock.yaml pnpm-workspace.yaml .npmrc tsconfig.base.json ./
 COPY apps/api/package.json apps/api/
 COPY packages/types/package.json packages/types/
 RUN pnpm install --frozen-lockfile --filter @dataroom/api --filter @dataroom/types
