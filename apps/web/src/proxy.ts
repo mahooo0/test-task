@@ -19,8 +19,9 @@ export default clerkMiddleware(async (auth, req) => {
 
 export const config = {
   matcher: [
-    // Skip Next internals and static files unless found in search params.
-    '/((?!_next|[^?]*\\.(?:html?|css|js(?!on)|jpe?g|webp|png|gif|svg|ttf|woff2?|ico|csv|docx?|xlsx?|zip|webmanifest)).*)',
+    // Skip Next internals, the PostHog /ingest reverse-proxy (telemetry needs no session —
+    // and protect() would swallow the POSTs into an HTML 404), and static files.
+    '/((?!_next|ingest|[^?]*\\.(?:html?|css|js(?!on)|jpe?g|webp|png|gif|svg|ttf|woff2?|ico|csv|docx?|xlsx?|zip|webmanifest)).*)',
     // Always run for API/tRPC routes (none yet, but keeps the guard total).
     '/(api|trpc)(.*)',
   ],
