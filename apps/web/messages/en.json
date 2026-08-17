@@ -131,7 +131,7 @@
     "refineHint": "Results may be truncated — refine your search."
   },
   "customize": {
-    "open": "Customize",
+    "open": "Visual settings",
     "title": "Customize",
     "description": "Personalize your workspace experience.",
     "theme": "Theme",

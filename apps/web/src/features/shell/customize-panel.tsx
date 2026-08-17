@@ -113,8 +113,10 @@ export function CustomizePanel() {
   return (
     <Sheet>
       <SheetTrigger asChild>
-        <Button variant="ghost" size="icon-sm" aria-label={t('open')}>
+        <Button variant="ghost" size="sm" aria-label={t('open')}>
           <Settings />
+          {/* Label collapses on narrow screens — the gear + aria-label carry it there. */}
+          <span className="hidden sm:inline">{t('open')}</span>
         </Button>
       </SheetTrigger>
       <SheetContent side="right" className="w-full gap-0 p-0 sm:max-w-md">
